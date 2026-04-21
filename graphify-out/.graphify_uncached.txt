@@ -1,0 +1,16 @@
+/Users/icabral/Tranding/README.md
+/Users/icabral/Tranding/docs/setup-windows.md
+/Users/icabral/Tranding/docs/setup-linux.md
+/Users/icabral/Tranding/docs/exchanges/bitget.md
+/Users/icabral/Tranding/docs/exchanges/kucoin.md
+/Users/icabral/Tranding/docs/exchanges/gateio.md
+/Users/icabral/Tranding/docs/exchanges/binance.md
+/Users/icabral/Tranding/docs/exchanges/mexc.md
+/Users/icabral/Tranding/docs/exchanges/bybit.md
+/Users/icabral/Tranding/docs/exchanges/README.md
+/Users/icabral/Tranding/docs/exchanges/kraken.md
+/Users/icabral/Tranding/docs/exchanges/okx.md
+/Users/icabral/Tranding/docs/exchanges/coinbase.md
+/Users/icabral/Tranding/docs/exchanges/bitfinex.md
+/Users/icabral/Tranding/prompts/02-one-shot-trade.md
+/Users/icabral/Tranding/prompts/01-extract-strategy.md
