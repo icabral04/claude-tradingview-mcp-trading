@@ -1,33 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { SignalBanner } from "@/components/SignalBanner";
+import { useState, useCallback } from "react";
 import { OptionsContextCard } from "@/components/OptionsContextCard";
+import { OptionsMetricsCard } from "@/components/OptionsMetricsCard";
 import { OptionsTable } from "@/components/OptionsTable";
-import type { SignalEntry } from "@/lib/signal-store";
 import type { ScreeningResult, ScreenedOption } from "@/lib/screening/types";
 
 type Bias = "bullish" | "bearish" | "neutral";
 
 const BIAS_LABELS: Record<Bias, string> = {
-  bullish: "ALTISTA (PUTS)",
-  bearish: "BAIXISTA (CALLS)",
-  neutral: "NEUTRO (AMBOS)",
+  bullish: "ALTISTA · PUTS",
+  bearish: "BAIXISTA · CALLS",
+  neutral: "NEUTRO · AMBOS",
 };
 
 export default function DashboardPage() {
-  const [signal, setSignal] = useState<SignalEntry | null>(null);
   const [screening, setScreening] = useState<ScreeningResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualBias, setManualBias] = useState<Bias | null>(null);
   const [orderResult, setOrderResult] = useState<string | null>(null);
-
-  async function fetchSignal() {
-    const res = await fetch("/api/signal");
-    const data = await res.json();
-    setSignal(data.current);
-  }
 
   const fetchScreening = useCallback(
     async (biaOverride?: Bias) => {
@@ -48,12 +40,6 @@ export default function DashboardPage() {
     },
     [manualBias]
   );
-
-  useEffect(() => {
-    fetchSignal();
-    const interval = setInterval(fetchSignal, 10_000);
-    return () => clearInterval(interval);
-  }, []);
 
   async function handleSell(opt: ScreenedOption) {
     try {
@@ -77,55 +63,63 @@ export default function DashboardPage() {
     }
   }
 
-  return (
-    <div className="max-w-screen-xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold tracking-wider" style={{ color: "var(--text)" }}>
-          SCREENING · LEE LOWELL
-        </h1>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Vender premium · Delta 0.15–0.25 · DTE 21–45
-        </span>
-      </div>
+  const isError = orderResult?.startsWith("Erro");
 
-      <SignalBanner signal={signal} />
+  return (
+    <div className="space-y-6">
+      {/* Page header */}
+      <header className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <p className="eyebrow mb-1.5">Screening · Lee Lowell</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+            Painel de opções BTC
+          </h1>
+        </div>
+        <div className="chip chip-accent">
+          <span>Vender premium · Δ 0.15–0.25 · DTE 21–45</span>
+        </div>
+      </header>
 
       <OptionsContextCard />
 
+      <OptionsMetricsCard />
+
       {orderResult && (
         <div
-          className="rounded-lg px-4 py-3 text-sm font-mono"
+          className={`card-muted px-4 py-3 text-sm font-mono flex items-center gap-2 ${
+            isError ? "!border-[rgba(248,113,113,0.3)]" : "!border-[rgba(52,211,153,0.3)]"
+          }`}
           style={{
-            background: orderResult.startsWith("Erro") ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
-            border: `1px solid ${orderResult.startsWith("Erro") ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
-            color: orderResult.startsWith("Erro") ? "var(--red)" : "var(--green)",
+            background: isError ? "var(--color-danger-soft)" : "var(--color-success-soft)",
+            color: isError ? "var(--color-danger)" : "var(--color-success)",
           }}
         >
+          <span className={`inline-block w-1.5 h-1.5 rounded-full ${isError ? "bg-[var(--color-danger)]" : "bg-[var(--color-success)]"}`} />
           {orderResult}
         </div>
       )}
 
-      <div
-        className="rounded-lg p-4 space-y-4"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>
-            OPÇÕES FILTRADAS
-          </h2>
+      {/* Screening panel */}
+      <section className="card p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-[var(--color-text)]">
+              Opções filtradas
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Resultados alinhados ao viés selecionado
+            </p>
+          </div>
+
           <div className="flex items-center gap-2">
-            <div className="flex rounded overflow-hidden text-xs" style={{ border: "1px solid var(--border)" }}>
+            <div className="segmented">
               {(["bullish", "bearish", "neutral"] as Bias[]).map((b) => (
                 <button
                   key={b}
+                  data-active={manualBias === b}
                   onClick={() => {
                     setManualBias(b);
                     fetchScreening(b);
-                  }}
-                  className="px-3 py-1 transition-colors"
-                  style={{
-                    background: manualBias === b ? "var(--surface-2)" : "transparent",
-                    color: manualBias === b ? "var(--text)" : "var(--text-muted)",
                   }}
                 >
                   {BIAS_LABELS[b]}
@@ -135,86 +129,72 @@ export default function DashboardPage() {
             <button
               onClick={() => fetchScreening()}
               disabled={loading}
-              className="px-3 py-1 rounded text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-50"
-              style={{ background: "var(--purple)", color: "white" }}
+              className="btn btn-primary"
             >
-              {loading ? "Buscando..." : "BUSCAR"}
+              {loading ? (
+                <>
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Buscando
+                </>
+              ) : (
+                "Buscar"
+              )}
             </button>
           </div>
         </div>
 
         {error && (
-          <p className="text-xs" style={{ color: "var(--red)" }}>
+          <div className="card-muted px-3 py-2 text-xs text-[var(--color-danger)] border-[rgba(248,113,113,0.3)]!">
             {error}
-          </p>
+          </div>
         )}
 
         {screening && (
-          <div className="flex items-center gap-4 text-xs pb-2" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
-            <span>
-              BTC:{" "}
-              <span style={{ color: "var(--text)" }}>
-                ${screening.btc_price.toLocaleString()}
-              </span>
+          <div className="flex items-center gap-5 text-xs text-[var(--color-text-muted)] pb-3 border-b border-[var(--color-border)] flex-wrap tabular font-mono">
+            <Stat label="BTC" value={`$${screening.btc_price.toLocaleString()}`} />
+            <Stat label="Sinal" value={screening.signal.toUpperCase()} valueClass="text-[var(--color-accent)]" />
+            <Stat
+              label="Alvo"
+              value={screening.option_type_target === "both" ? "CALLS + PUTS" : screening.option_type_target.toUpperCase() + "S"}
+            />
+            <Stat
+              label="Encontradas"
+              value={String(screening.options.length)}
+              valueClass="text-[var(--color-success)]"
+            />
+            <span className="ml-auto">
+              {new Date(screening.screened_at).toLocaleTimeString("pt-BR")}
             </span>
-            <span>
-              Sinal:{" "}
-              <span style={{ color: "var(--purple)" }}>{screening.signal.toUpperCase()}</span>
-            </span>
-            <span>
-              Alvo:{" "}
-              <span style={{ color: "var(--text)" }}>
-                {screening.option_type_target === "both" ? "CALLS + PUTS" : screening.option_type_target.toUpperCase() + "S"}
-              </span>
-            </span>
-            <span>
-              Encontradas:{" "}
-              <span style={{ color: "var(--green)" }}>{screening.options.length}</span>
-            </span>
-            <span className="ml-auto">{new Date(screening.screened_at).toLocaleTimeString("pt-BR")}</span>
           </div>
         )}
 
         {screening ? (
-          <OptionsTable
-            options={screening.options}
-            btcPrice={screening.btc_price}
-            onSell={handleSell}
-          />
+          <OptionsTable options={screening.options} btcPrice={screening.btc_price} onSell={handleSell} />
         ) : (
-          <p className="text-sm py-4 text-center" style={{ color: "var(--text-muted)" }}>
-            Selecione o viés e clique em BUSCAR para rodar o screening.
-          </p>
+          <div className="py-12 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--color-surface-2)] mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-text-muted)]">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </div>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Selecione o viés e clique em{" "}
+              <span className="text-[var(--color-text)] font-medium">Buscar</span> para rodar o screening
+            </p>
+          </div>
         )}
-      </div>
+      </section>
 
-      <div
-        className="rounded-lg p-4"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-      >
-        <h2 className="text-xs font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
-          WEBHOOK TRADINGVIEW
-        </h2>
-        <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
-          <p>
-            URL:{" "}
-            <code style={{ color: "var(--purple)" }}>
-              POST {typeof window !== "undefined" ? window.location.origin : ""}/api/webhook
-            </code>
-          </p>
-          <pre
-            className="mt-2 p-3 rounded text-xs overflow-x-auto"
-            style={{ background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
-          >{`{
-  "secret": "SEU_WEBHOOK_SECRET",
-  "bias": "bullish",
-  "ticker": "{{ticker}}",
-  "timeframe": "{{interval}}",
-  "price": {{close}},
-  "indicators": { "rsi": {{plot_0}}, "ema": {{plot_1}} }
-}`}</pre>
-        </div>
-      </div>
     </div>
+  );
+}
+
+function Stat({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-[var(--color-text-subtle)]">{label}:</span>
+      <span className={valueClass ?? "text-[var(--color-text)]"}>{value}</span>
+    </span>
   );
 }

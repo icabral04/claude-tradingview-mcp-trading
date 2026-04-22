@@ -11,26 +11,31 @@ interface Props {
 export function PositionsTable({ positions, onClose }: Props) {
   if (positions.length === 0) {
     return (
-      <p className="text-sm py-6 text-center" style={{ color: "var(--text-muted)" }}>
-        Nenhuma posição aberta.
-      </p>
+      <div className="py-10 text-center">
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--color-surface-2)] mb-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-text-muted)]">
+            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 9h6v6H9z" />
+          </svg>
+        </div>
+        <p className="text-sm text-[var(--color-text-muted)]">Nenhuma posição aberta.</p>
+      </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs">
+    <div className="overflow-x-auto -mx-5">
+      <table className="table-modern">
         <thead>
-          <tr className="text-left" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
-            <th className="pb-2 pr-4">Instrumento</th>
-            <th className="pb-2 pr-4">Direção</th>
-            <th className="pb-2 pr-4">Tamanho</th>
-            <th className="pb-2 pr-4">Preço Médio</th>
-            <th className="pb-2 pr-4">Mark</th>
-            <th className="pb-2 pr-4">P&L Float</th>
-            <th className="pb-2 pr-4">Delta</th>
-            <th className="pb-2 pr-4">Theta</th>
-            <th className="pb-2" />
+          <tr>
+            <th>Instrumento</th>
+            <th>Direção</th>
+            <th>Tamanho</th>
+            <th>Preço médio</th>
+            <th>Mark</th>
+            <th>P&L flutuante</th>
+            <th>Delta</th>
+            <th>Theta</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -45,7 +50,8 @@ export function PositionsTable({ positions, onClose }: Props) {
 
 function PositionRow({ pos, onClose }: { pos: DeribitPosition; onClose: (p: DeribitPosition) => Promise<void> }) {
   const [loading, setLoading] = useState(false);
-  const pnlColor = pos.floating_profit_loss >= 0 ? "var(--green)" : "var(--red)";
+  const pnlColor = pos.floating_profit_loss >= 0 ? "var(--color-success)" : "var(--color-danger)";
+  const isSell = pos.direction === "sell";
 
   async function handleClose(e: React.MouseEvent) {
     e.stopPropagation();
@@ -59,31 +65,24 @@ function PositionRow({ pos, onClose }: { pos: DeribitPosition; onClose: (p: Deri
   }
 
   return (
-    <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-      <td className="py-2 pr-4 font-mono" style={{ color: "var(--purple)" }}>
-        {pos.instrument_name}
+    <tr>
+      <td className="font-mono text-[var(--color-accent)]">{pos.instrument_name}</td>
+      <td>
+        <span className={`chip ${isSell ? "chip-success" : "chip-danger"}`}>
+          {pos.direction.toUpperCase()}
+        </span>
       </td>
-      <td className="py-2 pr-4" style={{ color: pos.direction === "sell" ? "var(--green)" : "var(--red)" }}>
-        {pos.direction.toUpperCase()}
-      </td>
-      <td className="py-2 pr-4">{pos.size}</td>
-      <td className="py-2 pr-4">{pos.average_price.toFixed(4)}</td>
-      <td className="py-2 pr-4">{pos.mark_price.toFixed(4)}</td>
-      <td className="py-2 pr-4 font-bold" style={{ color: pnlColor }}>
+      <td className="tabular font-mono">{pos.size}</td>
+      <td className="tabular font-mono">{pos.average_price.toFixed(4)}</td>
+      <td className="tabular font-mono text-[var(--color-text-muted)]">{pos.mark_price.toFixed(4)}</td>
+      <td className="tabular font-mono font-semibold" style={{ color: pnlColor }}>
         {pos.floating_profit_loss >= 0 ? "+" : ""}{pos.floating_profit_loss.toFixed(6)} BTC
       </td>
-      <td className="py-2 pr-4">{pos.delta.toFixed(4)}</td>
-      <td className="py-2 pr-4" style={{ color: "var(--red)" }}>
-        {pos.theta.toFixed(4)}
-      </td>
-      <td className="py-2">
-        <button
-          onClick={handleClose}
-          disabled={loading}
-          className="px-3 py-1 rounded text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-40"
-          style={{ background: "rgba(239,68,68,0.15)", color: "var(--red)", border: "1px solid rgba(239,68,68,0.3)" }}
-        >
-          {loading ? "..." : "FECHAR"}
+      <td className="tabular font-mono">{pos.delta.toFixed(4)}</td>
+      <td className="tabular font-mono text-[var(--color-danger)]">{pos.theta.toFixed(4)}</td>
+      <td>
+        <button onClick={handleClose} disabled={loading} className="btn btn-danger !py-1 !px-3">
+          {loading ? "..." : "Fechar"}
         </button>
       </td>
     </tr>

@@ -1,4 +1,4 @@
-import { getBtcOptions, getBtcIndexPrice, getTicker } from "@/lib/deribit/client";
+import { getBtcOptions, getBtcIndexPrice, getTicker, getMargins } from "@/lib/deribit/client";
 import type { SignalBias, OptionType, DeribitInstrument } from "@/lib/deribit/types";
 import type { ScreeningConfig, ScreenedOption, ScreeningResult } from "./types";
 
@@ -85,6 +85,8 @@ export async function runLeeLowell(
       otm_pct: Math.round(otm_pct * 10) / 10,
       profit_target: Math.round(profit_target * 10000) / 10000,
       score: 0,
+      margin_sell: null,
+      roi_real: null,
     };
 
     opt.score = Math.round(scoreOption(opt, config) * 100) / 100;
@@ -92,12 +94,32 @@ export async function runLeeLowell(
   }
 
   screened.sort((a, b) => b.score - a.score);
+  const top = screened.slice(0, 20);
+
+  // Enriquece top com margem real (Deribit get_margins). Best-effort: falhas não quebram.
+  await Promise.allSettled(
+    top.map(async (opt) => {
+      const price = opt.bid_price > 0 ? opt.bid_price : opt.mark_price;
+      if (price <= 0) return;
+      try {
+        const m = await getMargins(opt.instrument_name, 1, price);
+        // Para venda: `sell` é a margem inicial (em BTC) para 1 contrato
+        opt.margin_sell = Math.round(m.sell * 1e6) / 1e6;
+        if (opt.margin_sell > 0 && opt.dte > 0) {
+          opt.roi_real =
+            Math.round((price / opt.margin_sell) * (365 / opt.dte) * 100 * 10) / 10;
+        }
+      } catch {
+        // ignora: mantém null
+      }
+    })
+  );
 
   return {
     signal,
     btc_price: btcPrice,
     screened_at: new Date().toISOString(),
     option_type_target: typeTarget,
-    options: screened.slice(0, 20),
+    options: top,
   };
 }
