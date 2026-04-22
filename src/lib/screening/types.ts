@@ -35,6 +35,10 @@ export interface ScreenedOption {
   otm_pct: number;
   profit_target: number;
   score: number;
+  /** Margem inicial exigida pela Deribit para VENDER 1 contrato (em BTC). null = não computada */
+  margin_sell: number | null;
+  /** ROI anualizado com collateral real (margem): (premium/margin) * (365/dte) * 100 */
+  roi_real: number | null;
 }
 
 export interface ScreeningResult {

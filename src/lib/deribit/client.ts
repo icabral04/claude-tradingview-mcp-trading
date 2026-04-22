@@ -4,6 +4,8 @@ import type {
   DeribitTicker,
   DeribitPosition,
   DeribitOrder,
+  DeribitAccountSummary,
+  DeribitBookSummary,
   PlaceOrderParams,
 } from "./types";
 
@@ -221,6 +223,32 @@ export async function getTicker(instrumentName: string): Promise<DeribitTicker> 
   return publicGet<DeribitTicker>("ticker", { instrument_name: instrumentName });
 }
 
+export interface DeribitMarginsResult {
+  buy: number;
+  sell: number;
+  max_price: number;
+  min_price: number;
+}
+
+export async function getMargins(
+  instrumentName: string,
+  amount: number,
+  price: number
+): Promise<DeribitMarginsResult> {
+  return publicGet<DeribitMarginsResult>("get_margins", {
+    instrument_name: instrumentName,
+    amount,
+    price,
+  });
+}
+
+export async function getBookSummaryByCurrency(): Promise<DeribitBookSummary[]> {
+  return publicGet<DeribitBookSummary[]>("get_book_summary_by_currency", {
+    currency: "BTC",
+    kind: "option",
+  });
+}
+
 export async function getBtcIndexPrice(): Promise<number> {
   const result = await publicGet<{ index_price: number }>("get_index_price", {
     index_name: "btc_usd",
@@ -229,6 +257,44 @@ export async function getBtcIndexPrice(): Promise<number> {
 }
 
 // ─── Private endpoints ────────────────────────────────────────────────────────
+
+export async function getAccountSummary(): Promise<DeribitAccountSummary> {
+  const paperTrading = process.env.PAPER_TRADING !== "false";
+  if (paperTrading) {
+    return {
+      currency: "BTC",
+      balance: 1.0,
+      equity: 1.0,
+      available_funds: 0.95,
+      margin_balance: 1.0,
+      initial_margin: 0.05,
+      maintenance_margin: 0.025,
+      options_delta: 0,
+      options_gamma: 0,
+      options_theta: 0,
+      options_vega: 0,
+      options_pl: 0,
+      options_value: 0,
+      options_session_rpl: 0,
+      options_session_upl: 0,
+      session_rpl: 0,
+      session_upl: 0,
+      session_funding: 0,
+      delta_total: 0,
+      projected_delta_total: 0,
+      futures_pl: 0,
+      futures_session_rpl: 0,
+      futures_session_upl: 0,
+      total_pl: 0,
+      creation_timestamp: Date.now(),
+    };
+  }
+
+  return privateGet<DeribitAccountSummary>("get_account_summary", {
+    currency: "BTC",
+    extended: "true",
+  });
+}
 
 export async function getOpenPositions(): Promise<DeribitPosition[]> {
   return privateGet<DeribitPosition[]>("get_positions", {
