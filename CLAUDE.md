@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|---|
 | `sell-put` | 1 | bullish | unlimited (downside) |
 | `sell-call` | 1 | bearish | unlimited (upside) |
-| `bull-put-spread` | 2 | bullish | limited |
+| `bull-put-spread` | 2 | bullish | limited |/
 | `bear-call-spread` | 2 | bearish | limited |
 | `short-strangle` | 2 | neutral | unlimited (bilateral) |
 | `iron-condor` | 4 | neutral | limited |

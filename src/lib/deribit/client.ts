@@ -330,11 +330,30 @@ export async function getBookSummaryByCurrency(): Promise<DeribitBookSummary[]> 
   });
 }
 
+// Cache + dedup de chamadas concorrentes — get_index_price é bem barato na Deribit
+// mas é chamado por ~7 módulos (macro, OI panel, strike map, book loader, metrics...)
+// que disparam em paralelo no load do dashboard e estouram rate limit (429).
+const INDEX_PRICE_TTL = 5_000;
+let indexPriceCache: { at: number; value: number } | null = null;
+let indexPriceInflight: Promise<number> | null = null;
+
 export async function getBtcIndexPrice(): Promise<number> {
-  const result = await publicGet<{ index_price: number }>("get_index_price", {
-    index_name: "btc_usd",
-  });
-  return result.index_price;
+  if (indexPriceCache && Date.now() - indexPriceCache.at < INDEX_PRICE_TTL) {
+    return indexPriceCache.value;
+  }
+  if (indexPriceInflight) return indexPriceInflight;
+  indexPriceInflight = (async () => {
+    try {
+      const result = await publicGet<{ index_price: number }>("get_index_price", {
+        index_name: "btc_usd",
+      });
+      indexPriceCache = { at: Date.now(), value: result.index_price };
+      return result.index_price;
+    } finally {
+      indexPriceInflight = null;
+    }
+  })();
+  return indexPriceInflight;
 }
 
 // ─── Private endpoints ────────────────────────────────────────────────────────
