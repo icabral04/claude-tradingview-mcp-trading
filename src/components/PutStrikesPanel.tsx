@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { InfoButton } from "./InfoButton";
 
 interface PutRow {
   instrument_name: string;
@@ -110,11 +111,43 @@ export function PutStrikesPanel() {
   return (
     <div className="card p-3 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">Strikes PUT — venda direta</h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            Strikes próximos do spot · escolha uma expiry e venda a put em um clique
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Strikes PUT — venda direta</h2>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              Strikes próximos do spot · escolha uma expiry e venda a put em um clique
+            </p>
+          </div>
+          <InfoButton
+            title="Como escolher o strike"
+            summary={
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Δ 0.15–0.30</strong>: prob. de expirar OTM ≈ 70–85%. Clássico pra
+                  geração de renda.
+                </li>
+                <li>
+                  <strong>Dist % &lt; −5%</strong>: strike bem abaixo do spot → prêmio menor,
+                  mas muito mais seguro.
+                </li>
+                <li>
+                  <strong>IV alto + OI alto</strong> = liquidez boa e prêmio generoso; trocar
+                  é mais rápido.
+                </li>
+                <li>
+                  <strong>Prêmio USD / strike</strong> = ROI bruto do trade se for a expiração.
+                </li>
+                <li>
+                  Linha com <strong>bid = 0</strong> e só mark indica sem liquidez — prefira
+                  outra.
+                </li>
+                <li>
+                  Botão &quot;Vender&quot; envia single-leg pela /api/orders. Respeita a flag
+                  PAPER_TRADING.
+                </li>
+              </ul>
+            }
+          />
         </div>
         <div className="flex items-center gap-2 text-[11px]">
           <span className="text-[var(--color-text-muted)] tabular font-mono">

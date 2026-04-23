@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { InfoButton } from "./InfoButton";
 
 interface OiCell {
   call_oi: number;
@@ -99,13 +100,42 @@ export function OpenInterestPanel() {
   return (
     <div className="card p-3 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">
-            Open Interest · strike × expiry
-          </h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            Azul = dominância de CALL · Vermelho = dominância de PUT · intensidade ∝ OI total
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">
+              Open Interest · strike × expiry
+            </h2>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              Azul = dominância de CALL · Vermelho = dominância de PUT · intensidade ∝ OI total
+            </p>
+          </div>
+          <InfoButton
+            title="Onde está o dinheiro"
+            summary={
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>PUT wall</strong>: strike com maior OI em PUT. Atua como suporte
+                  técnico — vender PUT acima dela costuma ser mais seguro.
+                </li>
+                <li>
+                  <strong>CALL wall</strong>: teto psicológico onde market makers defendem;
+                  vender CALL acima é mais seguro.
+                </li>
+                <li>
+                  <strong>Max pain</strong>: strike que minimiza payoff dos compradores. BTC
+                  tende a gravitar até ali no vencimento.
+                </li>
+                <li>
+                  <strong>PCR &gt; 1</strong> = mais PUT que CALL. Pode indicar medo (sinal
+                  contrarian) ou hedge real de institucional.
+                </li>
+                <li>
+                  Células muito vermelhas abaixo do spot sinalizam posição grande em PUTs —
+                  bom alvo pra vender com crowd.
+                </li>
+              </ul>
+            }
+          />
         </div>
         <div className="flex items-center gap-3 text-[11px] tabular font-mono">
           {data.top_put_wall && (

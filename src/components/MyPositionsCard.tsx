@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DeribitAccountSummary, DeribitPosition } from "@/lib/deribit/types";
+import { InfoButton } from "./InfoButton";
 
 type AccountData = DeribitAccountSummary & { btc_price: number | null };
 
@@ -121,11 +122,35 @@ export function MyPositionsCard() {
   return (
     <div className="card p-3 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">Minha conta Deribit</h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            Saldo, P&L da sessão e posições abertas · atualiza a cada 15s
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Minha conta Deribit</h2>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              Saldo, P&L da sessão e posições abertas · atualiza a cada 15s
+            </p>
+          </div>
+          <InfoButton
+            title="Como ler sua conta"
+            summary={
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Disponível</strong>: capital livre para nova ordem — checa antes de
+                  vender PUT.
+                </li>
+                <li>
+                  <strong>Margem</strong>: &gt;70% = risco de liquidação, corta exposição.
+                </li>
+                <li>
+                  <strong>P&L sessão</strong> = realizado + flutuante do dia; sessão muito
+                  negativa é sinal pra pausar antes de escalar.
+                </li>
+                <li>
+                  Cada posição mostra <strong>valor USD</strong> (|size|·mark·BTC) e P&L BTC+USD.
+                </li>
+                <li>Atualiza a cada 15s. Ordens respeitam flag PAPER_TRADING.</li>
+              </ul>
+            }
+          />
         </div>
         <Link href="/positions" className="btn btn-ghost text-[11px]">
           Ver detalhes →

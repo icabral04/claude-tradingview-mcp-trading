@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { InfoButton } from "./InfoButton";
 
 interface FundingSnapshot {
   annualized_pct: number;
@@ -78,15 +79,44 @@ export function MacroCard() {
   return (
     <div className="card p-3 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">Contexto macro</h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            Funding Deribit · DXY / US10Y · fluxo de ETFs BTC (Farside, 1h de cache)
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Contexto macro</h2>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              Funding Deribit · DXY / US10Y · fluxo de ETFs BTC (Farside, 1h de cache)
+            </p>
+          </div>
+          <InfoButton
+            title="Como usar o macro"
+            summary={
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Funding positivo alto</strong> (&gt; 0.01%/8h) = perpetual comprado
+                  demais → cuidado ao vender PUT, risco de pullback.
+                </li>
+                <li>
+                  <strong>Funding negativo</strong> = shorts lotados, rali de short-squeeze
+                  favorece venda de PUT.
+                </li>
+                <li>
+                  <strong>DXY subindo + US10Y subindo</strong> = vento contra cripto, reduza
+                  exposição PUT.
+                </li>
+                <li>
+                  <strong>ETF flows positivos consecutivos</strong> = demanda spot, reforça
+                  bias bullish e a venda de PUT OTM.
+                </li>
+                <li>
+                  Saídas grandes nos ETFs = institucional sai, ritmo bearish — prefira bull-put
+                  spread a naked.
+                </li>
+              </ul>
+            }
+          />
+          <button onClick={load} disabled={loading} className="btn btn-ghost text-[11px]">
+            {loading ? "…" : "↻"}
+          </button>
         </div>
-        <button onClick={load} disabled={loading} className="btn btn-ghost text-[11px]">
-          {loading ? "…" : "↻"}
-        </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-[11px] tabular font-mono">

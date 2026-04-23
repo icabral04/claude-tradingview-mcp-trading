@@ -11,6 +11,7 @@ import {
   YAxis,
   Legend,
 } from "recharts";
+import { InfoButton } from "./InfoButton";
 
 interface SmilePoint {
   strike: number;
@@ -108,13 +109,42 @@ export function VolSurfacePanel() {
   return (
     <div className="card p-3 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">
-            Vol surface & term structure
-          </h2>
-          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            IV ATM por expiry + smile OTM por strike
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">
+              Vol surface & term structure
+            </h2>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+              IV ATM por expiry + smile OTM por strike
+            </p>
+          </div>
+          <InfoButton
+            title="Decida a maturidade"
+            summary={
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Contango</strong> (IV longo &gt; curto) = mercado calmo; vender PUT
+                  em maturidades maiores paga mais prêmio por theta.
+                </li>
+                <li>
+                  <strong>Backwardation</strong> = medo no curto; prêmio gordo em PUTs
+                  próximas — ótima entrada se bias for bullish.
+                </li>
+                <li>
+                  <strong>Skew 25Δ positivo alto</strong> (put IV − call IV) = mercado paga
+                  caro por proteção → bom momento pra vender PUT OTM.
+                </li>
+                <li>
+                  <strong>ATM IV &gt; média histórica</strong> = prêmio rico. Cruze com o IV
+                  rank do &#39;Mais contexto&#39; para confirmar.
+                </li>
+                <li>
+                  Smile muito inclinado para baixo = cauda fat tail precificada — use spread,
+                  não naked.
+                </li>
+              </ul>
+            }
+          />
         </div>
         <div className="flex items-center gap-3 text-[11px] tabular font-mono">
           {contango !== null && (
