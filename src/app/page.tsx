@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { OptionsContextCard } from "@/components/OptionsContextCard";
 import { OptionsMetricsCard } from "@/components/OptionsMetricsCard";
+import { OpenInterestPanel } from "@/components/OpenInterestPanel";
 import { StrategiesTable } from "@/components/StrategiesTable";
 import type { ScreenedTrade, StrategyId, StrategyMeta } from "@/lib/strategies/types";
 
@@ -184,6 +185,7 @@ export default function DashboardPage() {
 
       <OptionsContextCard />
       <OptionsMetricsCard />
+      <OpenInterestPanel />
 
       {orderResult && (
         <div
