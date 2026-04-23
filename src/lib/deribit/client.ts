@@ -9,7 +9,7 @@ import type {
   PlaceOrderParams,
 } from "./types";
 
-const BASE_URL = "https://www.deribit.com/api/v2";
+const BASE_URL = process.env.DERIBIT_BASE_URL ?? "https://www.deribit.com/api/v2";
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
@@ -69,10 +69,11 @@ async function privateGet<T>(path: string, params: Record<string, string | numbe
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`Deribit ${path} erro: ${res.status}`);
-
-  const body = await res.json();
-  if (body.error) throw new Error(`Deribit erro: ${body.error.message}`);
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.error) {
+    const detail = body?.error?.message ?? body?.error?.data?.reason ?? `HTTP ${res.status}`;
+    throw new Error(`Deribit ${path} ${res.status}: ${detail}`);
+  }
   return body.result as T;
 }
 
@@ -293,7 +294,6 @@ export async function getAccountSummary(): Promise<DeribitAccountSummary> {
 
   return privateGet<DeribitAccountSummary>("get_account_summary", {
     currency: "BTC",
-    extended: "true",
   });
 }
 
