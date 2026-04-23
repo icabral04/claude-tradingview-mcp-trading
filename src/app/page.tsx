@@ -8,6 +8,7 @@ import { VolSurfacePanel } from "@/components/VolSurfacePanel";
 import { PutStrikesPanel } from "@/components/PutStrikesPanel";
 import { MacroCard } from "@/components/MacroCard";
 import { BacktestPanel } from "@/components/BacktestPanel";
+import { MyPositionsCard } from "@/components/MyPositionsCard";
 import { StrategiesTable } from "@/components/StrategiesTable";
 import type { ScreenedTrade, StrategyId, StrategyMeta } from "@/lib/strategies/types";
 
@@ -190,6 +191,7 @@ export default function DashboardPage() {
         )}
       </header>
 
+      <MyPositionsCard />
       <MacroCard />
       <VolSurfacePanel />
       <OpenInterestPanel />

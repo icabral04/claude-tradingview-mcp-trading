@@ -5,10 +5,48 @@ import type { DeribitPosition } from "@/lib/deribit/types";
 
 interface Props {
   positions: DeribitPosition[];
+  btcPrice?: number | null;
   onClose: (pos: DeribitPosition) => Promise<void>;
 }
 
-export function PositionsTable({ positions, onClose }: Props) {
+interface ParsedInstrument {
+  expiryLabel: string;
+  expiryTs: number | null;
+  dte: number | null;
+  strike: number | null;
+  type: "call" | "put" | null;
+}
+
+function parseInstrument(name: string): ParsedInstrument {
+  const parts = name.split("-");
+  if (parts.length < 4) {
+    return { expiryLabel: "", expiryTs: null, dte: null, strike: null, type: null };
+  }
+  const [, dateStr, strikeStr, typeChar] = parts;
+  const strike = parseInt(strikeStr, 10);
+  const type = typeChar === "C" ? "call" : typeChar === "P" ? "put" : null;
+
+  const m = dateStr.match(/^(\d{1,2})([A-Z]{3})(\d{2})$/);
+  let expiryTs: number | null = null;
+  if (m) {
+    const [, d, mo, y] = m;
+    const monIdx = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"].indexOf(mo);
+    if (monIdx >= 0) {
+      expiryTs = Date.UTC(2000 + parseInt(y, 10), monIdx, parseInt(d, 10), 8, 0, 0);
+    }
+  }
+  const dte = expiryTs ? Math.max(0, Math.round(((expiryTs - Date.now()) / (1000 * 60 * 60 * 24)) * 10) / 10) : null;
+
+  return {
+    expiryLabel: dateStr,
+    expiryTs,
+    dte,
+    strike: Number.isFinite(strike) ? strike : null,
+    type,
+  };
+}
+
+export function PositionsTable({ positions, btcPrice, onClose }: Props) {
   if (positions.length === 0) {
     return (
       <div className="py-10 text-center">
@@ -28,19 +66,24 @@ export function PositionsTable({ positions, onClose }: Props) {
         <thead>
           <tr>
             <th>Instrumento</th>
-            <th>Direção</th>
-            <th>Tamanho</th>
+            <th>Tipo</th>
+            <th>Dir</th>
+            <th>Size</th>
+            <th>Strike</th>
+            <th>DTE</th>
             <th>Preço médio</th>
             <th>Mark</th>
-            <th>P&L flutuante</th>
-            <th>Delta</th>
-            <th>Theta</th>
+            <th>Valor (USD)</th>
+            <th>P&L BTC</th>
+            <th>P&L USD</th>
+            <th>Δ</th>
+            <th>Θ</th>
             <th />
           </tr>
         </thead>
         <tbody>
           {positions.map((pos) => (
-            <PositionRow key={pos.instrument_name} pos={pos} onClose={onClose} />
+            <PositionRow key={pos.instrument_name} pos={pos} btcPrice={btcPrice ?? null} onClose={onClose} />
           ))}
         </tbody>
       </table>
@@ -48,10 +91,23 @@ export function PositionsTable({ positions, onClose }: Props) {
   );
 }
 
-function PositionRow({ pos, onClose }: { pos: DeribitPosition; onClose: (p: DeribitPosition) => Promise<void> }) {
+function PositionRow({
+  pos,
+  btcPrice,
+  onClose,
+}: {
+  pos: DeribitPosition;
+  btcPrice: number | null;
+  onClose: (p: DeribitPosition) => Promise<void>;
+}) {
   const [loading, setLoading] = useState(false);
   const pnlColor = pos.floating_profit_loss >= 0 ? "var(--color-success)" : "var(--color-danger)";
   const isSell = pos.direction === "sell";
+  const parsed = parseInstrument(pos.instrument_name);
+
+  const pnlUsd = btcPrice ? pos.floating_profit_loss * btcPrice : null;
+  // Valor da posição (absoluto) em USD: |size| × mark_price (BTC) × BTC USD
+  const valueUsd = btcPrice ? Math.abs(pos.size) * pos.mark_price * btcPrice : null;
 
   async function handleClose(e: React.MouseEvent) {
     e.stopPropagation();
@@ -64,19 +120,44 @@ function PositionRow({ pos, onClose }: { pos: DeribitPosition; onClose: (p: Deri
     }
   }
 
+  const typeBadge = parsed.type === "put"
+    ? "chip-danger"
+    : parsed.type === "call"
+    ? "chip-info"
+    : "chip-info";
+
   return (
     <tr>
-      <td className="font-mono text-[var(--color-accent)]">{pos.instrument_name}</td>
+      <td className="font-mono text-[var(--color-accent)] text-xs">{pos.instrument_name}</td>
       <td>
-        <span className={`chip ${isSell ? "chip-success" : "chip-danger"}`}>
+        <span className={`chip ${typeBadge} text-[10px]`}>
+          {parsed.type ? parsed.type.toUpperCase() : "—"}
+        </span>
+      </td>
+      <td>
+        <span className={`chip ${isSell ? "chip-success" : "chip-danger"} text-[10px]`}>
           {pos.direction.toUpperCase()}
         </span>
       </td>
       <td className="tabular font-mono">{pos.size}</td>
+      <td className="tabular font-mono">
+        {parsed.strike ? `$${parsed.strike.toLocaleString()}` : "—"}
+      </td>
+      <td className="tabular font-mono text-[var(--color-text-muted)]">
+        {parsed.dte !== null ? `${parsed.dte}d` : "—"}
+      </td>
       <td className="tabular font-mono">{pos.average_price.toFixed(4)}</td>
       <td className="tabular font-mono text-[var(--color-text-muted)]">{pos.mark_price.toFixed(4)}</td>
+      <td className="tabular font-mono text-[var(--color-text-muted)]">
+        {valueUsd !== null ? `$${Math.round(valueUsd).toLocaleString()}` : "—"}
+      </td>
       <td className="tabular font-mono font-semibold" style={{ color: pnlColor }}>
-        {pos.floating_profit_loss >= 0 ? "+" : ""}{pos.floating_profit_loss.toFixed(6)} BTC
+        {pos.floating_profit_loss >= 0 ? "+" : ""}{pos.floating_profit_loss.toFixed(6)}
+      </td>
+      <td className="tabular font-mono font-semibold" style={{ color: pnlColor }}>
+        {pnlUsd !== null
+          ? `${pnlUsd >= 0 ? "+" : ""}$${Math.abs(pnlUsd).toFixed(2)}`
+          : "—"}
       </td>
       <td className="tabular font-mono">{pos.delta.toFixed(4)}</td>
       <td className="tabular font-mono text-[var(--color-danger)]">{pos.theta.toFixed(4)}</td>

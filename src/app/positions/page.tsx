@@ -7,6 +7,7 @@ import type { DeribitPosition } from "@/lib/deribit/types";
 
 export default function PositionsPage() {
   const [positions, setPositions] = useState<DeribitPosition[]>([]);
+  const [btcPrice, setBtcPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -15,10 +16,16 @@ export default function PositionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/positions");
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setPositions(Array.isArray(data) ? data : []);
+      const [posRes, accRes] = await Promise.all([
+        fetch("/api/positions"),
+        fetch("/api/account"),
+      ]);
+      const posData = await posRes.json();
+      if (posData.error) throw new Error(posData.error);
+      setPositions(Array.isArray(posData) ? posData : []);
+
+      const accData = await accRes.json();
+      if (typeof accData.btc_price === "number") setBtcPrice(accData.btc_price);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao buscar posições");
     } finally {
@@ -54,7 +61,11 @@ export default function PositionsPage() {
   }
 
   const totalPnl = positions.reduce((sum, p) => sum + p.floating_profit_loss, 0);
+  const totalPnlUsd = btcPrice ? totalPnl * btcPrice : null;
   const totalDelta = positions.reduce((sum, p) => sum + p.delta, 0);
+  const totalValueUsd = btcPrice
+    ? positions.reduce((sum, p) => sum + Math.abs(p.size) * p.mark_price * btcPrice, 0)
+    : null;
   const isErrorMsg = message?.startsWith("Erro");
 
   return (
@@ -101,12 +112,18 @@ export default function PositionsPage() {
       )}
 
       {positions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <SummaryCard
             label="P&L flutuante"
             value={`${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(6)} BTC`}
             tone={totalPnl >= 0 ? "success" : "danger"}
-            hint={totalPnl >= 0 ? "Em lucro" : "Em prejuízo"}
+            hint={totalPnlUsd !== null ? `${totalPnlUsd >= 0 ? "+" : ""}$${Math.abs(totalPnlUsd).toFixed(2)} USD` : "—"}
+          />
+          <SummaryCard
+            label="Valor em risco"
+            value={totalValueUsd !== null ? `$${Math.round(totalValueUsd).toLocaleString()}` : "—"}
+            tone="default"
+            hint="soma |size|·mark·BTC"
           />
           <SummaryCard
             label="Delta total"
@@ -133,7 +150,7 @@ export default function PositionsPage() {
             ))}
           </div>
         ) : (
-          <PositionsTable positions={positions} onClose={handleClose} />
+          <PositionsTable positions={positions} btcPrice={btcPrice} onClose={handleClose} />
         )}
       </section>
     </div>

@@ -260,7 +260,8 @@ export async function getBtcIndexPrice(): Promise<number> {
 
 export async function getAccountSummary(): Promise<DeribitAccountSummary> {
   const paperTrading = process.env.PAPER_TRADING !== "false";
-  if (paperTrading) {
+  const useRealAccountData = process.env.USE_REAL_ACCOUNT_DATA === "true";
+  if (paperTrading && !useRealAccountData) {
     return {
       currency: "BTC",
       balance: 1.0,
