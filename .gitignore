@@ -4,3 +4,5 @@
 node_modules/
 .next/
 signal-store.json
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
