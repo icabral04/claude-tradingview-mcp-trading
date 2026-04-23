@@ -55,12 +55,30 @@ export function AccountSummary() {
   }
 
   const btc = data.btc_price ?? 0;
-  const sessionPl = data.session_rpl + data.session_upl;
-  const marginUsage = data.equity > 0 ? (data.initial_margin / data.equity) * 100 : 0;
+  const n = (v: number | undefined | null) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const equity = n(data.equity);
+  const available = n(data.available_funds);
+  const balance = n(data.balance);
+  const initialMargin = n(data.initial_margin);
+  const maintMargin = n(data.maintenance_margin);
+  const sessionRpl = n(data.session_rpl);
+  const sessionUpl = n(data.session_upl);
+  const sessionFunding = n(data.session_funding);
+  const optionsValue = n(data.options_value);
+  const optionsPl = n(data.options_pl);
+  const futuresPl = n(data.futures_pl);
+  const totalPl = n(data.total_pl);
+  const optionsDelta = n(data.options_delta);
+  const optionsGamma = n(data.options_gamma);
+  const optionsTheta = n(data.options_theta);
+  const optionsVega = n(data.options_vega);
+
+  const sessionPl = sessionRpl + sessionUpl;
+  const marginUsage = equity > 0 ? (initialMargin / equity) * 100 : 0;
   const marginTone = marginUsage > 70 ? "danger" : marginUsage > 40 ? "warning" : "success";
 
-  const equityUsd = data.equity * btc;
-  const availUsd = data.available_funds * btc;
+  const equityUsd = equity * btc;
+  const availUsd = available * btc;
   const sessionPlUsd = sessionPl * btc;
 
   return (
@@ -85,14 +103,14 @@ export function AccountSummary() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi
           label="Equity"
-          primary={fmtBtc(data.equity)}
+          primary={fmtBtc(equity)}
           secondary={btc ? fmtUsd(equityUsd) : undefined}
           tone="default"
           hint="balance + PnL + options value"
         />
         <Kpi
           label="Disponível"
-          primary={fmtBtc(data.available_funds)}
+          primary={fmtBtc(available)}
           secondary={btc ? fmtUsd(availUsd) : undefined}
           tone="accent"
           hint="para novas ordens"
@@ -102,12 +120,12 @@ export function AccountSummary() {
           primary={fmtBtcSigned(sessionPl)}
           secondary={btc ? `${sessionPl >= 0 ? "+" : ""}${fmtUsd(sessionPlUsd)}` : undefined}
           tone={sessionPl >= 0 ? "success" : "danger"}
-          hint={`R ${data.session_rpl.toFixed(6)} · U ${data.session_upl.toFixed(6)}`}
+          hint={`R ${sessionRpl.toFixed(6)} · U ${sessionUpl.toFixed(6)}`}
         />
         <MarginKpi
-          used={data.initial_margin}
-          maint={data.maintenance_margin}
-          equity={data.equity}
+          used={initialMargin}
+          maint={maintMargin}
+          equity={equity}
           tone={marginTone}
           pct={marginUsage}
         />
@@ -121,33 +139,33 @@ export function AccountSummary() {
             <span className="chip chip-accent">Σ posições</span>
           </div>
           <div className="grid grid-cols-4 gap-2 pt-1">
-            <GreekCell label="Δ" value={data.options_delta} hint="delta total" />
-            <GreekCell label="Γ" value={data.options_gamma} precision={5} />
-            <GreekCell label="Θ" value={data.options_theta} tone="danger" hint="theta/dia" />
-            <GreekCell label="V" value={data.options_vega} />
+            <GreekCell label="Δ" value={optionsDelta} hint="delta total" />
+            <GreekCell label="Γ" value={optionsGamma} precision={5} />
+            <GreekCell label="Θ" value={optionsTheta} tone="danger" hint="theta/dia" />
+            <GreekCell label="V" value={optionsVega} />
           </div>
         </div>
 
         <div className="card-muted p-4 space-y-2">
           <p className="eyebrow">Detalhamento</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs font-mono tabular pt-1">
-            <KV k="Balance" v={fmtBtc(data.balance)} />
-            <KV k="Options value" v={fmtBtc(data.options_value)} />
+            <KV k="Balance" v={fmtBtc(balance)} />
+            <KV k="Options value" v={fmtBtc(optionsValue)} />
             <KV
               k="Options P&L"
-              v={fmtBtcSigned(data.options_pl)}
-              tone={data.options_pl >= 0 ? "success" : "danger"}
+              v={fmtBtcSigned(optionsPl)}
+              tone={optionsPl >= 0 ? "success" : "danger"}
             />
             <KV
               k="Futures P&L"
-              v={fmtBtcSigned(data.futures_pl)}
-              tone={data.futures_pl >= 0 ? "success" : "danger"}
+              v={fmtBtcSigned(futuresPl)}
+              tone={futuresPl >= 0 ? "success" : "danger"}
             />
-            <KV k="Session funding" v={fmtBtcSigned(data.session_funding)} />
+            <KV k="Session funding" v={fmtBtcSigned(sessionFunding)} />
             <KV
               k="Total P&L"
-              v={fmtBtcSigned(data.total_pl)}
-              tone={data.total_pl >= 0 ? "success" : "danger"}
+              v={fmtBtcSigned(totalPl)}
+              tone={totalPl >= 0 ? "success" : "danger"}
             />
           </div>
         </div>
