@@ -174,10 +174,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <p className="eyebrow mb-1.5">Screener · Estratégias de venda de prêmio</p>
+          <p className="eyebrow mb-1.5">Venda de PUT BTC · Deribit</p>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
             Painel de opções BTC
           </h1>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            Macro · vol surface · open interest · strikes de PUT em um clique
+          </p>
         </div>
         {response && (
           <div className="chip chip-accent">
@@ -187,11 +190,19 @@ export default function DashboardPage() {
       </header>
 
       <MacroCard />
-      <OptionsContextCard />
-      <OptionsMetricsCard />
       <VolSurfacePanel />
       <OpenInterestPanel />
       <PutStrikesPanel />
+
+      <details className="card p-3">
+        <summary className="cursor-pointer text-[11px] uppercase tracking-wider text-[var(--color-text-subtle)] font-semibold select-none">
+          Mais contexto · sinal TV · métricas agregadas
+        </summary>
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <OptionsContextCard />
+          <OptionsMetricsCard />
+        </div>
+      </details>
 
       {orderResult && (
         <div
