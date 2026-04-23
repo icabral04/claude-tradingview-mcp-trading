@@ -343,6 +343,71 @@ export async function sellOption(params: PlaceOrderParams): Promise<{ order: Der
   });
 }
 
+export interface MultiLegOrderParams {
+  legs: Array<{
+    instrument_name: string;
+    direction: "buy" | "sell";
+    amount: number;
+    price?: number;
+  }>;
+  type: "limit" | "market";
+  label: string;
+  post_only?: boolean;
+}
+
+export interface MultiLegResult {
+  label: string;
+  orders: Array<{ order: DeribitOrder; direction: "buy" | "sell" }>;
+}
+
+/**
+ * Envia uma combinação multi-leg como N ordens sequenciais com label comum.
+ * Não é atômico — se uma perna falhar, as anteriores já foram colocadas.
+ * O retorno traz cada ordem para que o caller possa reverter manualmente.
+ */
+export async function placeMultiLeg(params: MultiLegOrderParams): Promise<MultiLegResult> {
+  const paperTrading = process.env.PAPER_TRADING !== "false";
+  const orders: MultiLegResult["orders"] = [];
+
+  for (const leg of params.legs) {
+    if (paperTrading) {
+      orders.push({
+        direction: leg.direction,
+        order: {
+          order_id: `PAPER-${leg.direction.toUpperCase()}-${Date.now()}-${orders.length}`,
+          instrument_name: leg.instrument_name,
+          direction: leg.direction,
+          order_type: params.type,
+          order_state: "filled",
+          amount: leg.amount,
+          price: leg.price ?? "market",
+          filled_amount: leg.amount,
+          average_price: leg.price ?? 0,
+          creation_timestamp: Date.now(),
+          last_update_timestamp: Date.now(),
+          reduce_only: false,
+          post_only: params.post_only ?? false,
+          label: params.label,
+        },
+      });
+      continue;
+    }
+
+    const action = leg.direction === "sell" ? "sell" : "buy";
+    const result = await privatePost<{ order: DeribitOrder }>(action, {
+      instrument_name: leg.instrument_name,
+      amount: leg.amount,
+      type: params.type,
+      ...(leg.price !== undefined && { price: leg.price }),
+      label: params.label,
+      ...(params.post_only && { post_only: params.post_only }),
+    });
+    orders.push({ direction: leg.direction, order: result.order });
+  }
+
+  return { label: params.label, orders };
+}
+
 export async function closePosition(
   instrumentName: string,
   amount: number,

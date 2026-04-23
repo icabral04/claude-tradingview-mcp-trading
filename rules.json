@@ -1,35 +1,91 @@
 {
-  "strategy": {
-    "name": "Lee Lowell — Sell Premium BTC Options",
-    "methodology": "Vender opções OTM com IV alto. Fechar ao atingir 50% do prêmio coletado.",
-    "description": "Sinal do TradingView define a direção. Bullish → vende puts. Bearish → vende calls. Neutro → ambos (iron condor). Critério principal: delta baixo (0.15-0.25), IV alto, prazo médio (21-45 DTE)."
-  },
-  "screening": {
-    "iv_min": 60,
-    "delta_min": 0.15,
-    "delta_max": 0.25,
-    "dte_min": 21,
-    "dte_max": 45,
-    "profit_target_pct": 50,
-    "min_open_interest": 10,
-    "min_bid": 0.0005,
-    "strategy": {
-      "bullish": "sell_put",
-      "bearish": "sell_call",
-      "neutral": "iron_condor"
+  "version": 2,
+  "default_strategy": "sell-put",
+  "strategies": {
+    "sell-put": {
+      "short_delta_min": 0.15,
+      "short_delta_max": 0.30,
+      "dte_min": 7,
+      "dte_max": 45,
+      "iv_min": 30,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "top_n": 20
+    },
+    "sell-call": {
+      "short_delta_min": 0.15,
+      "short_delta_max": 0.30,
+      "dte_min": 7,
+      "dte_max": 45,
+      "iv_min": 30,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "top_n": 20
+    },
+    "bull-put-spread": {
+      "short_delta_min": 0.20,
+      "short_delta_max": 0.35,
+      "long_delta_min": 0.05,
+      "long_delta_max": 0.15,
+      "dte_min": 7,
+      "dte_max": 45,
+      "iv_min": 25,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "spread_width_min_usd": 1000,
+      "spread_width_max_usd": 5000,
+      "top_n": 20
+    },
+    "bear-call-spread": {
+      "short_delta_min": 0.20,
+      "short_delta_max": 0.35,
+      "long_delta_min": 0.05,
+      "long_delta_max": 0.15,
+      "dte_min": 7,
+      "dte_max": 45,
+      "iv_min": 25,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "spread_width_min_usd": 1000,
+      "spread_width_max_usd": 5000,
+      "top_n": 20
+    },
+    "short-strangle": {
+      "short_delta_min": 0.15,
+      "short_delta_max": 0.25,
+      "dte_min": 14,
+      "dte_max": 45,
+      "iv_min": 30,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "top_n": 20
+    },
+    "iron-condor": {
+      "short_delta_min": 0.15,
+      "short_delta_max": 0.25,
+      "long_delta_min": 0.05,
+      "long_delta_max": 0.10,
+      "dte_min": 14,
+      "dte_max": 45,
+      "iv_min": 25,
+      "min_open_interest": 10,
+      "min_short_price": 0,
+      "spread_width_min_usd": 1000,
+      "spread_width_max_usd": 5000,
+      "top_n": 20
     }
   },
   "risk": {
-    "max_contracts_per_trade": 1,
     "max_open_positions": 5,
     "max_delta_exposure": 0.5,
+    "profit_target_pct": 50,
     "paper_trading": true
   },
   "notes": [
-    "Delta 0.15-0.25 = ~80% de probabilidade de expirar sem valor",
-    "IV > 60% = prêmio caro, bom momento para vender",
-    "DTE 21-45 = zona ótima de decaimento de theta",
-    "50% profit target = fecha a metade do lucro máximo, reduz exposição",
-    "Sempre validar com paper trading antes de ir a mercado real"
+    "Single-leg (sell-put/sell-call): risco grande mas captura prêmio cheio",
+    "Spreads (bull-put/bear-call): risco limitado, crédito menor — bom em IV baixo",
+    "Short strangle: lucra com mercado lateral, risco bilateral",
+    "Iron condor: lateral com risco limitado nos dois lados — versão segura do strangle",
+    "Profit target 50%: fecha trade quando o crédito atual cai pra metade do recebido"
   ]
 }

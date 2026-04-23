@@ -192,7 +192,7 @@ function Kpi({
       {secondary && (
         <p className="text-xs text-[var(--color-text-muted)] font-mono tabular mt-0.5">{secondary}</p>
       )}
-      {hint && <p className="text-[10px] text-[var(--color-text-subtle)] mt-1.5">{hint}</p>}
+      {hint && <p className="text-[11px] text-[var(--color-text-subtle)] mt-1.5">{hint}</p>}
     </div>
   );
 }
@@ -234,7 +234,7 @@ function MarginKpi({
           style={{ width: `${Math.min(100, pct)}%`, background: color }}
         />
       </div>
-      <p className="text-[10px] text-[var(--color-text-subtle)] mt-1.5 font-mono tabular">
+      <p className="text-[11px] text-[var(--color-text-subtle)] mt-1.5 font-mono tabular">
         IM {used.toFixed(4)} · MM {maint.toFixed(4)} · eq {equity.toFixed(4)}
       </p>
     </div>
@@ -257,7 +257,7 @@ function GreekCell({
   const color = tone ? toneColor(tone) : Math.abs(value) < 1e-6 ? "var(--color-text-subtle)" : "var(--color-text)";
   return (
     <div className="text-center" title={hint}>
-      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-0.5">
+      <div className="text-[11px] uppercase tracking-widest text-[var(--color-text-subtle)] mb-0.5">
         {label}
       </div>
       <div className="text-sm font-mono tabular font-semibold" style={{ color }}>

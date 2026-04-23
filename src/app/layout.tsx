@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="min-h-screen antialiased" suppressHydrationWarning>
-        <header className="sticky top-0 z-40 border-b border-[var(--color-border)]/60 backdrop-blur-xl bg-[var(--color-bg)]/70">
+        <header className="sticky top-0 z-40 border-b border-[var(--color-border)]/60 backdrop-blur-md bg-[var(--color-bg)]/85">
           <nav className="max-w-screen-2xl mx-auto flex items-center gap-8 px-6 h-14 text-sm">
             <Link href="/" className="flex items-center gap-2 group">
               <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-400 to-violet-600 shadow-[0_0_16px_rgba(139,92,246,0.5)]">

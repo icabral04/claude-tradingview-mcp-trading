@@ -296,7 +296,7 @@ function Metric({ label, value, color, muted }: { label: string; value: string; 
       >
         {value}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)] mt-0.5">{label}</div>
+      <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-subtle)] mt-0.5">{label}</div>
     </div>
   );
 }

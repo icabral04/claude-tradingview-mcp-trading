@@ -138,7 +138,7 @@ export function OptionsMetricsCard() {
       <div className="card-muted p-0 overflow-hidden">
         <div className="flex items-center justify-between p-3 border-b border-[var(--color-border)]">
           <p className="eyebrow">Term structure · Max pain por vencimento</p>
-          <span className="text-[10px] text-[var(--color-text-subtle)] font-mono tabular">
+          <span className="text-[11px] text-[var(--color-text-subtle)] font-mono tabular">
             BTC ${data.btc_price.toLocaleString("en-US", { maximumFractionDigits: 0 })}
           </span>
         </div>
@@ -192,7 +192,7 @@ export function OptionsMetricsCard() {
                     </td>
                     <td className="text-right tabular font-mono text-[var(--color-text-muted)]">
                       {totalVol24h.toFixed(0)}
-                      <span className="text-[10px] text-[var(--color-text-subtle)] ml-1">
+                      <span className="text-[11px] text-[var(--color-text-subtle)] ml-1">
                         ({total > 0 ? ((totalVol24h / total) * 100).toFixed(0) : 0}%)
                       </span>
                     </td>
@@ -209,7 +209,7 @@ export function OptionsMetricsCard() {
       <div className="card-muted p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="eyebrow">Open interest por strike (top 15)</p>
-          <div className="flex items-center gap-3 text-[10px] text-[var(--color-text-subtle)]">
+          <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-subtle)]">
             <span className="flex items-center gap-1">
               <span className="inline-block w-2 h-2 rounded-sm bg-[var(--color-danger)]" /> Calls
             </span>
@@ -304,7 +304,7 @@ function Kpi({
       {secondary && (
         <p className="text-xs text-[var(--color-text-muted)] font-mono tabular mt-0.5">{secondary}</p>
       )}
-      {hint && <p className="text-[10px] text-[var(--color-text-subtle)] mt-1.5 font-mono tabular">{hint}</p>}
+      {hint && <p className="text-[11px] text-[var(--color-text-subtle)] mt-1.5 font-mono tabular">{hint}</p>}
     </div>
   );
 }
@@ -342,7 +342,7 @@ function PcrKpi({
         <div className="h-full bg-[var(--color-danger)] opacity-75" style={{ width: `${callPct}%` }} />
         <div className="h-full bg-[var(--color-success)] opacity-75" style={{ width: `${putPct}%` }} />
       </div>
-      <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono tabular text-[var(--color-text-subtle)]">
+      <div className="flex items-center justify-between mt-1.5 text-[11px] font-mono tabular text-[var(--color-text-subtle)]">
         <span>C {callVal.toFixed(0)} {unit}</span>
         <span>P {putVal.toFixed(0)} {unit}</span>
       </div>

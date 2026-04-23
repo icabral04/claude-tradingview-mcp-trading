@@ -2,14 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this repo actually is
+## What this repo is
 
-The `README.md` still describes the **upstream project** (a BitGet/TradingView-MCP trading bot) and is no longer accurate. The repo was rewritten into a different product:
+`deribit-options-trader` — a Next.js 16 app (React 19, TS 5 strict, Tailwind 4) that screens **6 strategies de venda de prêmio** em opções BTC na Deribit:
 
-- `package.json` → `deribit-options-trader` — a Next.js 16 app (React 19, TS 5 strict, Tailwind 4)
-- Target exchange: **Deribit** (not BitGet)
-- Strategy: **Lee Lowell "sell premium"** on BTC options (delta 0.15–0.25, IV ≥ 60, DTE 21–45, 50% profit target)
-- The upstream legacy (`bot.js`, `railway.json`, `trades.csv`, `docs/`, `prompts/`) has already been removed — only `README.md` itself still reflects the old project and should not be trusted for setup.
+| Strategy ID | Pernas | Viés | Risco |
+|---|---|---|---|
+| `sell-put` | 1 | bullish | unlimited (downside) |
+| `sell-call` | 1 | bearish | unlimited (upside) |
+| `bull-put-spread` | 2 | bullish | limited |
+| `bear-call-spread` | 2 | bearish | limited |
+| `short-strangle` | 2 | neutral | unlimited (bilateral) |
+| `iron-condor` | 4 | neutral | limited |
+
+The README.md was rewritten to match the product. The upstream BitGet/`bot.js` legacy was removed.
 
 ## Commands
 
@@ -17,12 +23,13 @@ Package manager is **npm** (only `package-lock.json` exists — no pnpm lockfile
 
 ```bash
 npm install
-npm run dev          # next dev
+npm run dev          # next dev (Turbopack)
 npm run build        # next build — must pass before shipping
 npm start            # next start (prod)
-npm run lint         # next lint (eslint-config-next)
 npm run type-check   # tsc --noEmit
 ```
+
+`npm run lint` is broken — `next lint` was removed in Next 16 and the script needs migration to ESLint direto. Não foi consertado.
 
 There is **no test suite**. Do not claim tests pass — say so explicitly.
 
@@ -43,46 +50,61 @@ PAPER_TRADING          # default tratado como "true" — ver invariante abaixo
 TradingView alert ──POST /api/webhook──► signal-store.json (file on disk)
                                                │
                                                ▼
-Browser ──GET /api/screening?bias=...──► runLeeLowell() ──► Deribit public API
-                                               │                  (instruments, ticker, margins)
-                                               ▼
-                                         Top 20 options, scored
+Browser ──GET /api/screening?strategy=...──► registry.runStrategy(id, cfg)
                                                │
-Browser ──POST /api/orders──► sellOption() ──► Deribit private (or paper stub)
+                                               ▼
+                                         loadBook() ──► Deribit public
+                                         (cache 30s, mark fallback)
+                                               │
+                                               ▼
+                                  Top N ScreenedTrades, scored
+                                               │
+Browser ──POST /api/orders──► placeMultiLeg([..]) ──► Deribit private (or paper stub)
+        ou {legs:[..]}            (sequencial, label comum)
 ```
 
 ### Module map (`src/`)
 
-- `app/` — Next.js App Router. Two pages: `/` (dashboard + screening) and `/positions` (open positions, auto-polled every 15s).
-- `app/api/` — thin route handlers that delegate to `lib/`:
-  - `webhook` — receives TradingView alerts, validates `secret` against `WEBHOOK_SECRET`, persists via `saveSignal`.
-  - `signal` — reads current signal + last 10 history entries.
-  - `screening` — runs Lee Lowell screener; reads `rules.json` via JSON import assert; takes optional `?bias=bullish|bearish|neutral` override; falls back to the stored signal, then to `neutral`.
-  - `orders` / `orders/close` — `sellOption` / `closePosition` on Deribit (or paper stub).
-  - `account`, `positions`, `dvol`, `btc-bias`, `options-metrics`, `tv-analysis` — read-only context feeds for the UI cards.
-- `lib/deribit/client.ts` — single source of truth for Deribit HTTP calls. Uses `client_credentials` OAuth, caches the access token in-memory with a 30s expiry buffer. Also computes SMA5/20/50, RSI14, ATR14 from `get_tradingview_chart_data` and IV rank/percentile from `get_volatility_index_data`.
-- `lib/screening/lee-lowell.ts` — candidate filter + scoring. Score = `0.4·deltaCenterDist + 0.4·ivScore + 0.2·dteScore` (target centre 30 DTE). Top 20 are enriched with real `get_margins` so `roi_real = (premium/margin) · 365/dte · 100` is annualized ROI on collateral.
-- `lib/metrics/options-metrics.ts` — aggregate book metrics (PCR, per-expiry ATM IV, max pain, top strikes by OI). Parses expiry from the instrument name (`BTC-26DEC25-100000-C`) as a fallback — Deribit options expire at 08:00 UTC, and that magic number lives here.
-- `lib/signal-store.ts` — writes `signal-store.json` at `process.cwd()`. Flat file, not a DB. **This means the app is single-instance**: horizontal scaling breaks the signal store.
+- `app/` — Next.js App Router. Páginas `/` (dashboard com seleção de estratégia) e `/positions` (posições abertas, auto-poll 15s).
+- `app/api/` — route handlers finos:
+  - `webhook` — alertas TradingView, valida `secret` contra `WEBHOOK_SECRET`.
+  - `signal` — sinal atual + últimos 10.
+  - `screening` — aceita `?strategy=<id>` ou `?bias=bullish|bearish|neutral` (mapeia para sell-put / sell-call / iron-condor). Mescla `DEFAULT_CONFIGS` com `rules.json`.
+  - `orders` — aceita single-leg `{instrument_name,amount,...}` OU multi-leg `{legs:[...], type, label}`.
+  - `orders/close` — `closePosition`.
+  - `account`, `positions`, `dvol`, `btc-bias`, `options-metrics`, `tv-analysis` — feeds read-only para os cards.
+- `lib/deribit/client.ts` — único ponto de acesso à Deribit. OAuth `client_credentials`, cache de token in-memory com buffer de 30s. `placeMultiLeg(legs[])` envia N ordens **sequenciais** com label comum (não-atômico, ver invariante abaixo). Calcula SMA/RSI/ATR de `get_tradingview_chart_data` e IV rank/percentile de `get_volatility_index_data`.
+- `lib/strategies/` — núcleo do produto:
+  - `types.ts` — `StrategyId`, `Leg`, `ScreenedTrade`, `StrategyConfig`, `StrategyMeta`.
+  - `math.ts` — `creditBtc`, `breakevenUsd`, `maxLossUsd`, `popFromLegs`, `marginEstimateBtc`, `roiAnnualPct`, `scoreTrade`. Score = `0.4·roiScore + 0.4·pop + 0.2·deltaCenterDist`.
+  - `book.ts` — `loadBook(dteMin,dteMax)` busca instruments + tickers em batch (25 por vez), cacheia 30s (process-local), fallback `bid → mark` quando bid = 0. `quoteToLeg()` converte ticker em `Leg`.
+  - `single/sell-put.ts`, `single/sell-call.ts` — naked.
+  - `spreads/build.ts` — gera credit spreads casando short + long no mesmo expiry, respeitando `spread_width_min/max_usd`. Usado por `bull-put.ts` e `bear-call.ts`.
+  - `neutral/short-strangle.ts`, `neutral/iron-condor.ts` — combina puts e calls do mesmo expiry.
+  - `registry.ts` — `STRATEGIES` (metadata), `DEFAULT_CONFIGS` (perfis), `runStrategy(id,cfg)` dispatch.
+- `lib/metrics/options-metrics.ts` — métricas agregadas do book (PCR, max pain, ATM IV por expiry). Parser de expiry do instrument name assume settlement 08:00 UTC.
+- `lib/signal-store.ts` — grava `signal-store.json` em `process.cwd()`. **App é single-instance**: escalar horizontalmente quebra o signal store.
 
 ### Key invariants (do not break silently)
 
-- **Paper trading default is fail-safe.** `client.ts` and `orders` treat `PAPER_TRADING !== "false"` as paper mode, so *missing env var* = paper. To go live, set exactly `PAPER_TRADING=false`. When in paper mode, `sellOption` / `closePosition` / `getAccountSummary` return stub values — never hit Deribit private endpoints.
-- **Token cache is process-local.** `cachedToken` in `lib/deribit/client.ts` is a module-scope variable. Serverless cold starts will re-auth; that's expected.
-- **`rules.json` is imported via JSON assert** in `app/api/screening/route.ts` (`import rulesJson from "../../../../rules.json" assert { type: "json" }`). Cast is to `ScreeningConfig` — if you add fields to `rules.json`, update `lib/screening/types.ts` too or the cast will silently lose them.
-- **Screening throttle.** Only the first 80 instruments are sent to `get_ticker` in parallel (`candidates.slice(0, 80)`). Increasing this hits Deribit rate limits.
-- **Signal-store.json is gitignored** (alongside `.env`, `.env.local`). Don't commit local state.
+- **Paper trading default is fail-safe.** `placeMultiLeg`, `sellOption`, `closePosition`, `getAccountSummary` tratam `PAPER_TRADING !== "false"` como paper. Variável vazia, ausente ou qualquer outro valor = simulação. Para mercado real, exatamente `PAPER_TRADING=false`.
+- **Multi-leg não é atômico.** `placeMultiLeg` dispara ordens sequenciais com label comum. Se a perna 2 falhar, a perna 1 já está no book — caller precisa reverter manualmente. Para combos atômicos seria preciso usar Deribit `combo_book`, fora do escopo atual.
+- **Cache do book é process-local e mutável.** `lib/strategies/book.ts` mantém `CACHE` em variável de módulo, TTL 30s. Em serverless cada cold start recarrega. Use `invalidateBookCache()` antes de operar se quiser dados frescos.
+- **`rules.json` (v2) tem perfis por estratégia.** Esquema é `{ strategies: { [StrategyId]: Partial<StrategyConfig> } }`. A API mescla com `DEFAULT_CONFIGS` em `registry.ts`. Adicionar novo campo em `StrategyConfig` requer também atualizar `DEFAULT_CONFIGS`.
+- **Token Deribit cacheado em processo.** `cachedToken` em `lib/deribit/client.ts` re-autentica em cold start.
+- **Margem para spreads é estimada.** `marginEstimateBtc` usa `max_loss_usd / spot` para spreads/IC e `strike·0.5/spot` para naked. A margem real da Deribit pode ser menor por reconhecimento de risco-off — refinar via `get_margins` quando precisar de números reais para sizing.
+- **`signal-store.json` é gitignored** (junto com `.env`, `.env.local`). Não commitar estado local.
 
 ### UI
 
-Tailwind 4 via `@tailwindcss/postcss`. Design tokens (`--color-*`) live in `src/app/globals.css` — components reference CSS variables, not Tailwind theme colors, so adding a new accent means editing `globals.css`. Dark UI, no theme toggle. Portuguese copy throughout.
+Tailwind 4 via `@tailwindcss/postcss`. Design tokens (`--color-*`) em `src/app/globals.css` — componentes referenciam CSS variables, não classes de tema. Dark UI, sem theme toggle. Copy em pt-BR. Componente principal: `src/components/StrategiesTable.tsx` renderiza pernas como badges coloridos (PUT vermelho, CALL azul, sinal +/− pelo direction).
 
 ## Language / style
 
-- User-visible strings (labels, error messages): **Portuguese (pt-BR)**.
-- Code identifiers and type names: **English**.
-- TS strict is enabled — no `any` without justification.
+- User-visible strings: **pt-BR**.
+- Code identifiers e type names: **inglês**.
+- TS strict ativado — sem `any` injustificado.
 
 ## graphify
 
-`graphify-out/` contains only the AST cache (no `GRAPH_REPORT.md` or `wiki/` yet) — there is nothing to read before answering architecture questions. If you materially change code, run `graphify update .` from the repo root to refresh the cache (AST-only, no API cost).
+`graphify-out/` contém apenas o cache AST (sem `GRAPH_REPORT.md` ou `wiki/`). Após mudanças materiais, rodar `graphify update .` para atualizar o cache (AST-only, sem custo de API).

@@ -8,9 +8,9 @@
   --color-surface-3: #1f2333;
   --color-border: #242839;
   --color-border-strong: #343954;
-  --color-text: #e6e7f2;
-  --color-text-muted: #8a8fa8;
-  --color-text-subtle: #5a5f78;
+  --color-text: #eef0fa;
+  --color-text-muted: #a3a8c0;
+  --color-text-subtle: #767c96;
 
   --color-accent: #a78bfa;
   --color-accent-strong: #8b5cf6;
@@ -51,6 +51,14 @@
   --purple: var(--color-accent-strong);
 }
 
+html {
+  /* Em fundo escuro, subpixel-antialiased mantém o stroke mais cheio que `antialiased`,
+     que afina demais e dá impressão de texto borrado em Retina. */
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: geometricPrecision;
+}
+
 html, body {
   background:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.12), transparent 60%),
@@ -58,9 +66,8 @@ html, body {
     var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv11", "ss01", "ss03";
+  font-feature-settings: "ss01", "ss02", "cv11";
+  font-synthesis: none;
 }
 
 /* Scrollbars */
@@ -74,7 +81,7 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
 
 /* Number tabular */
-.tabular { font-variant-numeric: tabular-nums; }
+.tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum", "cv11"; }
 
 /* Reusable primitives */
 .card {
