@@ -6,11 +6,25 @@ import type { DeribitAccountSummary, DeribitPosition } from "@/lib/deribit/types
 
 type AccountData = DeribitAccountSummary & { btc_price: number | null };
 
+interface ScopeInfo {
+  base_url: string;
+  has_credentials: boolean;
+  authenticated: boolean;
+  scope: string;
+  scopes: string[];
+  can_read_account: boolean;
+  can_trade: boolean;
+  expires_in_sec: number;
+  error?: string;
+}
+
 export function MyPositionsCard() {
   const [account, setAccount] = useState<AccountData | null>(null);
   const [positions, setPositions] = useState<DeribitPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scope, setScope] = useState<ScopeInfo | null>(null);
+  const [scopeLoading, setScopeLoading] = useState(false);
 
   async function load() {
     try {
@@ -32,6 +46,29 @@ export function MyPositionsCard() {
     }
   }
 
+  async function diagnose() {
+    setScopeLoading(true);
+    try {
+      const res = await fetch("/api/deribit-scope");
+      const json = (await res.json()) as ScopeInfo;
+      setScope(json);
+    } catch (err) {
+      setScope({
+        base_url: "",
+        has_credentials: false,
+        authenticated: false,
+        scope: "",
+        scopes: [],
+        can_read_account: false,
+        can_trade: false,
+        expires_in_sec: 0,
+        error: err instanceof Error ? err.message : "Falha no diagnóstico",
+      });
+    } finally {
+      setScopeLoading(false);
+    }
+  }
+
   useEffect(() => {
     load();
     const id = setInterval(load, 15_000);
@@ -39,7 +76,24 @@ export function MyPositionsCard() {
   }, []);
 
   if (error) {
-    return <div className="card p-3 text-xs text-[var(--color-danger)]">Minha conta: {error}</div>;
+    return (
+      <div className="card p-3 space-y-3 border-[rgba(248,113,113,0.3)]">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="text-xs text-[var(--color-danger)] font-mono">
+            Minha conta: {error}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={diagnose} disabled={scopeLoading} className="btn btn-ghost text-[11px]">
+              {scopeLoading ? "…" : "Diagnosticar"}
+            </button>
+            <button onClick={load} className="btn btn-ghost text-[11px]">
+              ↻
+            </button>
+          </div>
+        </div>
+        {scope && <ScopeDiagnosis info={scope} />}
+      </div>
+    );
   }
   if (loading && !account) {
     return (
@@ -222,6 +276,57 @@ function Tile({
         {signed && usd >= 0 ? "+" : signed && usd < 0 ? "-" : ""}$
         {Math.abs(usd).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </div>
+    </div>
+  );
+}
+
+function ScopeDiagnosis({ info }: { info: ScopeInfo }) {
+  const missing: string[] = [];
+  if (!info.can_read_account) missing.push("account:read");
+  if (!info.can_trade) missing.push("trade:read_write");
+
+  return (
+    <div className="card-muted p-3 space-y-2 text-[11px] tabular font-mono">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+        <Row k="Base URL" v={info.base_url || "—"} />
+        <Row k="Credenciais" v={info.has_credentials ? "ok" : "faltando"} good={info.has_credentials} />
+        <Row k="Autenticado" v={info.authenticated ? "sim" : "não"} good={info.authenticated} />
+        <Row k="Expira em" v={info.expires_in_sec > 0 ? `${info.expires_in_sec}s` : "—"} />
+        <Row k="account:read" v={info.can_read_account ? "✓" : "✗"} good={info.can_read_account} />
+        <Row k="trade:read_write" v={info.can_trade ? "✓" : "✗"} good={info.can_trade} />
+      </div>
+      {info.scope && (
+        <div>
+          <div className="text-[10px] text-[var(--color-text-subtle)] uppercase tracking-wider">
+            Scope atual
+          </div>
+          <div className="text-[11px] text-[var(--color-text)] break-all">{info.scope}</div>
+        </div>
+      )}
+      {info.error && (
+        <div className="text-[var(--color-danger)]">Erro do auth: {info.error}</div>
+      )}
+      {missing.length > 0 && (
+        <div className="text-[var(--color-warning)]">
+          Faltando na API key: <strong>{missing.join(", ")}</strong>. Edite em Deribit → Account
+          → API → Edit e marque as permissões.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ k, v, good }: { k: string; v: string; good?: boolean }) {
+  const color =
+    good === true
+      ? "var(--color-accent)"
+      : good === false
+      ? "var(--color-danger)"
+      : "var(--color-text)";
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-[var(--color-text-subtle)]">{k}</span>
+      <span style={{ color }}>{v}</span>
     </div>
   );
 }

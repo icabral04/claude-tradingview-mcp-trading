@@ -11,7 +11,8 @@ import type {
 
 const BASE_URL = process.env.DERIBIT_BASE_URL ?? "https://www.deribit.com/api/v2";
 
-let cachedToken: { token: string; expiresAt: number; scope: string } | null = null;
+type CachedToken = { token: string; expiresAt: number; scope: string };
+let cachedToken: CachedToken | null = null;
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
@@ -48,6 +49,72 @@ async function getAccessToken(): Promise<string> {
 
 function getCachedScope(): string {
   return cachedToken?.scope ?? "";
+}
+
+export interface DeribitAuthInfo {
+  base_url: string;
+  has_credentials: boolean;
+  authenticated: boolean;
+  scope: string;
+  scopes: string[];
+  can_read_account: boolean;
+  can_trade: boolean;
+  expires_in_sec: number;
+  error?: string;
+}
+
+export async function getDeribitAuthInfo(): Promise<DeribitAuthInfo> {
+  const baseUrl = BASE_URL;
+  const hasCreds = !!(process.env.DERIBIT_CLIENT_ID && process.env.DERIBIT_CLIENT_SECRET);
+  if (!hasCreds) {
+    return {
+      base_url: baseUrl,
+      has_credentials: false,
+      authenticated: false,
+      scope: "",
+      scopes: [],
+      can_read_account: false,
+      can_trade: false,
+      expires_in_sec: 0,
+      error: "DERIBIT_CLIENT_ID/SECRET não configurados",
+    };
+  }
+
+  cachedToken = null;
+  try {
+    await getAccessToken();
+  } catch (err) {
+    return {
+      base_url: baseUrl,
+      has_credentials: true,
+      authenticated: false,
+      scope: "",
+      scopes: [],
+      can_read_account: false,
+      can_trade: false,
+      expires_in_sec: 0,
+      error: err instanceof Error ? err.message : "Falha ao autenticar",
+    };
+  }
+
+  const fresh = cachedToken as CachedToken | null;
+  const scope = fresh?.scope ?? "";
+  const scopes = scope.split(/\s+/).filter(Boolean);
+  const canReadAccount = scopes.some((s: string) => s.startsWith("account:read") || s === "account");
+  const canTrade = scopes.some((s: string) => s.startsWith("trade:read_write") || s === "trade");
+  const expiresInSec = fresh
+    ? Math.max(0, Math.round((fresh.expiresAt - Date.now()) / 1000))
+    : 0;
+  return {
+    base_url: baseUrl,
+    has_credentials: true,
+    authenticated: true,
+    scope,
+    scopes,
+    can_read_account: canReadAccount,
+    can_trade: canTrade,
+    expires_in_sec: expiresInSec,
+  };
 }
 
 async function publicGet<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
