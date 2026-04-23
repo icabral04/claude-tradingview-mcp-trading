@@ -11,7 +11,7 @@ import type {
 
 const BASE_URL = process.env.DERIBIT_BASE_URL ?? "https://www.deribit.com/api/v2";
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+let cachedToken: { token: string; expiresAt: number; scope: string } | null = null;
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 30_000) {
@@ -40,9 +40,14 @@ async function getAccessToken(): Promise<string> {
   cachedToken = {
     token: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000,
+    scope: data.scope ?? "",
   };
 
   return cachedToken.token;
+}
+
+function getCachedScope(): string {
+  return cachedToken?.scope ?? "";
 }
 
 async function publicGet<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
@@ -72,6 +77,14 @@ async function privateGet<T>(path: string, params: Record<string, string | numbe
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.error) {
     const detail = body?.error?.message ?? body?.error?.data?.reason ?? `HTTP ${res.status}`;
+    if (String(detail).toLowerCase().includes("forbidden")) {
+      const scope = getCachedScope();
+      throw new Error(
+        `Deribit ${path} ${res.status}: forbidden — scope atual="${scope}". ` +
+          `A API key precisa de 'account:read' (e trade:read_write para ordens). ` +
+          `Edite a key em Account → API → Edit e marque as permissões.`
+      );
+    }
     throw new Error(`Deribit ${path} ${res.status}: ${detail}`);
   }
   return body.result as T;
