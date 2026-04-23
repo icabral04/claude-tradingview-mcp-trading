@@ -192,7 +192,8 @@ export default function DashboardPage() {
       </header>
 
       <MyPositionsCard />
-      <AgentsPanel />
+      <AgentsPanel side="put" />
+      <AgentsPanel side="call" />
       <MacroCard />
       <VolSurfacePanel />
       <OpenInterestPanel />

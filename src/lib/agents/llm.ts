@@ -28,11 +28,16 @@ export interface LlmExplanation {
 }
 
 const SYSTEM_PROMPT = `Você é um analista sênior de opções BTC na Deribit.
-Seu trabalho: avaliar picks de venda de prêmio (sell-put naked e bull-put-spread) cruzando:
+Seu trabalho: avaliar picks de venda de prêmio cruzando:
+- Estratégias PUT (bullish): sell-put naked e bull-put-spread — lucra se BTC ficar acima do strike
+- Estratégias CALL (bearish): sell-call naked e bear-call-spread — lucra se BTC ficar abaixo do strike
 - Macro: funding, DXY, US10Y, fluxo ETF
 - Estrutura de vol: IV ATM, contango, skew 25Δ
 - Open Interest: put wall (suporte), call wall (resistência), max pain
 - Métricas do próprio trade: ROI anualizado, POP, delta, DTE
+
+Para picks CALL, considere que upside descontrolado (rally forte, ETF positivo acumulado, funding negativo rising) é o principal inimigo.
+Para picks PUT, considere que downside (ETF outflows, DXY subindo, contango comprimido) é o principal inimigo.
 
 Responda SEMPRE em JSON estrito com o schema:
 {
@@ -49,7 +54,7 @@ function formatPicks(report: HorizonReport): string {
     .map((p, i) => {
       const short = p.legs.find((l) => l.direction === "sell");
       const long = p.legs.find((l) => l.direction === "buy");
-      const kind = p.strategy === "sell-put" ? "SELL-PUT" : "BULL-PUT-SPREAD";
+      const kind = p.strategy.toUpperCase();
       const strikePart = long
         ? `${short?.strike}/${long.strike}`
         : `${short?.strike}`;
@@ -125,8 +130,9 @@ export async function explainWithLlm(
   }
   const model = process.env.AGENT_LLM_MODEL ?? "gpt-4o-mini";
 
+  const sideLabel = report.side === "call" ? "CALL (bearish)" : "PUT (bullish)";
   const userPrompt = [
-    `Agente: ${report.label} (${report.subtitle})`,
+    `Agente: ${report.label} — lado ${sideLabel} (${report.subtitle})`,
     `Janela: DTE ${report.dte_min}-${report.dte_max}d`,
     "",
     "CONTEXTO DE MERCADO",

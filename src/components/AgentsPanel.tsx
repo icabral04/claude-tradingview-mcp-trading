@@ -5,6 +5,7 @@ import { InfoButton } from "./InfoButton";
 import type { ScreenedTrade } from "@/lib/strategies/types";
 
 type HorizonId = "short" | "medium" | "long";
+type Side = "put" | "call";
 
 interface Pick extends ScreenedTrade {
   horizon_score: number;
@@ -30,16 +31,18 @@ interface HorizonReport {
   subtitle: string;
   dte_min: number;
   dte_max: number;
+  side: Side;
   picks: Pick[];
   stats: {
-    sell_put_candidates: number;
-    bull_put_spread_candidates: number;
+    naked_candidates: number;
+    spread_candidates: number;
     total_considered: number;
   };
   verdict: Verdict;
 }
 
 interface AgentsData {
+  side: Side;
   spot: number;
   generated_at: string;
   horizons: HorizonReport[];
@@ -64,13 +67,61 @@ const TONE_STYLES: Record<Verdict["tone"], { chip: string; label: string }> = {
 function describePick(p: Pick): { label: string; kind: string } {
   const short = p.legs.find((l) => l.direction === "sell");
   const long = p.legs.find((l) => l.direction === "buy");
-  if (p.strategy === "bull-put-spread") {
-    return { kind: "Bull Put", label: `${short?.strike}/${long?.strike ?? "?"}` };
+  switch (p.strategy) {
+    case "bull-put-spread":
+      return { kind: "Bull Put", label: `${short?.strike}/${long?.strike ?? "?"}` };
+    case "bear-call-spread":
+      return { kind: "Bear Call", label: `${short?.strike}/${long?.strike ?? "?"}` };
+    case "sell-call":
+      return { kind: "Sell CALL", label: `${short?.strike}` };
+    case "sell-put":
+    default:
+      return { kind: "Sell PUT", label: `${short?.strike}` };
   }
-  return { kind: "Sell PUT", label: `${short?.strike}` };
 }
 
-export function AgentsPanel() {
+const SIDE_META: Record<Side, {
+  title: string;
+  subtitle: string;
+  biasChip: string;
+  biasLabel: string;
+  infoTitle: string;
+  infoBullets: Array<{ bold: string; rest: string }>;
+}> = {
+  put: {
+    title: "Agentes de oportunidade PUT · bullish",
+    subtitle: "sell-put naked + bull-put-spread · 3 horizontes",
+    biasChip: "text-[var(--color-success)] border-[rgba(52,211,153,0.4)] bg-[var(--color-success-soft)]",
+    biasLabel: "Bullish",
+    infoTitle: "Como os agentes PUT pensam",
+    infoBullets: [
+      { bold: "Curto (1–5d)", rest: ": theta agressivo, Δ 0.25–0.35, IV ≥ 35%. Gamma alto, exige vigilância diária." },
+      { bold: "Médio (5–10d)", rest: ": equilíbrio prêmio × POP, Δ 0.15–0.25, IV ≥ 30%. Sweet spot de renda." },
+      { bold: "Longo (10–30d)", rest: ": segurança, Δ 0.10–0.20, POP alto. Ganha em contango." },
+      { bold: "Explicar", rest: ": LLM cruza macro + OI walls + skew e devolve go/neutral/wait." },
+    ],
+  },
+  call: {
+    title: "Agentes de oportunidade CALL · bearish",
+    subtitle: "sell-call naked + bear-call-spread · 3 horizontes",
+    biasChip: "text-[var(--color-danger)] border-[rgba(248,113,113,0.4)] bg-[var(--color-danger-soft)]",
+    biasLabel: "Bearish",
+    infoTitle: "Como os agentes CALL pensam",
+    infoBullets: [
+      { bold: "Curto (1–5d)", rest: ": theta rico acima do spot, Δ 0.25–0.35, IV ≥ 35%. Rally forte é inimigo." },
+      { bold: "Médio (5–10d)", rest: ": Δ 0.15–0.25. Boa combinação com CALL wall forte como teto técnico." },
+      { bold: "Longo (10–30d)", rest: ": Δ 0.10–0.20, foco em segurança. Backwardation ajuda." },
+      { bold: "Risco naked", rest: ": upside infinito — se bias for incerto, sempre prefira bear-call-spread." },
+      { bold: "Explicar", rest: ": LLM avalia macro (ETF flows, funding) + OI walls com picks." },
+    ],
+  },
+};
+
+interface AgentsPanelProps {
+  side?: Side;
+}
+
+export function AgentsPanel({ side = "put" }: AgentsPanelProps) {
   const [data, setData] = useState<AgentsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +135,9 @@ export function AgentsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/agents${force ? "?force=1" : ""}`);
+      const params = new URLSearchParams({ side });
+      if (force) params.set("force", "1");
+      const res = await fetch(`/api/agents?${params.toString()}`);
       const json = (await res.json()) as AgentsData;
       if (json.error) throw new Error(json.error);
       setData(json);
@@ -93,7 +146,7 @@ export function AgentsPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [side]);
 
   useEffect(() => {
     load();
@@ -105,7 +158,7 @@ export function AgentsPanel() {
       const res = await fetch("/api/agents/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ horizon: h }),
+        body: JSON.stringify({ horizon: h, side }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -118,14 +171,20 @@ export function AgentsPanel() {
     }
   }
 
+  const meta = SIDE_META[side];
+
   if (error) {
-    return <div className="card p-3 text-xs text-[var(--color-danger)]">Agentes: {error}</div>;
+    return (
+      <div className="card p-3 text-xs text-[var(--color-danger)]">
+        Agentes {side.toUpperCase()}: {error}
+      </div>
+    );
   }
   if (!data && loading) {
     return (
       <div className="card p-4 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
         <span className="inline-block w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-        Rodando agentes (curto · médio · longo)…
+        Rodando agentes {side.toUpperCase()} (curto · médio · longo)…
       </div>
     );
   }
@@ -136,37 +195,26 @@ export function AgentsPanel() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-[var(--color-text)]">
-              Agentes de oportunidade · sell PUT / bull put spread
-            </h2>
-            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-              Três horizontes temporais · score algorítmico por perfil · explicação LLM sob demanda
-            </p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-[var(--color-text)]">{meta.title}</h2>
+              <span
+                className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${meta.biasChip}`}
+              >
+                {meta.biasLabel}
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{meta.subtitle}</p>
           </div>
           <InfoButton
-            title="Como os agentes pensam"
+            title={meta.infoTitle}
             summary={
               <ul className="list-disc pl-4 space-y-1">
-                <li>
-                  <strong>Curto (1–5d)</strong>: theta agressivo, Δ 0.25–0.35, IV ≥ 35%. Cada
-                  dia conta; gamma alto exige vigilância.
-                </li>
-                <li>
-                  <strong>Médio (5–10d)</strong>: equilíbrio prêmio × POP, Δ 0.15–0.25, IV ≥ 30%.
-                  Sweet spot clássico de renda.
-                </li>
-                <li>
-                  <strong>Longo (10–30d)</strong>: foco em segurança, Δ 0.10–0.20, POP alto.
-                  Ganha em contango; prêmio por dia menor.
-                </li>
-                <li>
-                  Score combina ROI anual, POP, aderência ao delta alvo, theta/dte e IV fit.
-                  Mostra Top 3 por horizonte (≥1 naked e ≥1 spread quando possível).
-                </li>
-                <li>
-                  <strong>Explicar</strong> chama LLM cruzando macro (funding, DXY, US10Y, ETF) +
-                  OI walls + skew com os picks, e devolve go/neutral/wait acionável.
-                </li>
+                {meta.infoBullets.map((b, i) => (
+                  <li key={i}>
+                    <strong>{b.bold}</strong>
+                    {b.rest}
+                  </li>
+                ))}
               </ul>
             }
           />
@@ -310,8 +358,7 @@ export function AgentsPanel() {
                     : "Explicar com LLM"}
                 </button>
                 <div className="text-[9.5px] text-[var(--color-text-subtle)] text-center">
-                  {h.stats.sell_put_candidates + h.stats.bull_put_spread_candidates} candidatos
-                  avaliados
+                  {h.stats.naked_candidates + h.stats.spread_candidates} candidatos avaliados
                 </div>
               </div>
             </div>

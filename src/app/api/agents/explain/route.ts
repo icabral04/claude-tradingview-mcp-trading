@@ -45,7 +45,7 @@ async function buildContext(): Promise<MarketContext> {
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    const body = (await req.json().catch(() => ({}))) as { horizon?: string };
+    const body = (await req.json().catch(() => ({}))) as { horizon?: string; side?: string };
     const horizonId = body.horizon;
     if (horizonId !== "short" && horizonId !== "medium" && horizonId !== "long") {
       return NextResponse.json(
@@ -53,15 +53,16 @@ export async function POST(req: Request): Promise<NextResponse> {
         { status: 400 }
       );
     }
+    const side = body.side === "call" ? "call" : "put";
 
-    const [report, ctx] = await Promise.all([runAgents(), buildContext()]);
+    const [report, ctx] = await Promise.all([runAgents(side), buildContext()]);
     const horizon = report.horizons.find((h) => h.id === horizonId);
     if (!horizon) {
       return NextResponse.json({ error: `Horizon ${horizonId} não encontrado` }, { status: 404 });
     }
 
     const explanation = await explainWithLlm(horizon, ctx);
-    return NextResponse.json({ horizon: horizonId, explanation, context: ctx });
+    return NextResponse.json({ horizon: horizonId, side, explanation, context: ctx });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     return NextResponse.json({ error: message }, { status: 500 });
